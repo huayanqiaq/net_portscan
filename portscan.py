@@ -11,9 +11,10 @@ from threading import *
 import time
 
 
-screenLock = Semaphore(value=1)
+screenLock = Semaphore(value=10)
 # threadinglist = []
 resultlist = []
+threadlist = []
 
 
 def ip2num(ip):
@@ -33,28 +34,28 @@ def connScan(tgtHost, tgtPort):
         connSkt = socket(AF_INET, SOCK_STREAM)
         #connSkt.settimeout(100)
         connSkt.connect((tgtHost, tgtPort))
-        connSkt.send('cikepython\r\n')
+        connSkt.send('cipython\r\n')
         results = connSkt.recv(100)
         screenLock.acquire()
         print('[+]%s:%d/tcp open' % (tgtHost,tgtPort))
-        print('[+] ' + str(results))
+        #print('[+] ' + str(results))
         str1 = "%s,%s,%s\r\n" %(tgtHost,str(tgtPort),results.replace('\n','').replace('\r',''))
         resultlist.append(str1)
-
+        connSkt.close()
     except:
         screenLock.acquire()
-        print('[-]%d/tcp close' % (tgtPort))
-    finally:
-        screenLock.release()
-        connSkt.close()
+        #print('[-]%d/tcp close' % (tgtPort))
+    screenLock.release()
+    
 
 
 def portScan(tgtHosts, tgtPorts):
-    setdefaulttimeout(100)
+    setdefaulttimeout(60)
     for tgtHost in tgtHosts:
         for tgtPort in tgtPorts:
             t = Thread(target=connScan, args=(tgtHost, int(tgtPort)))
-            t.start()
+            threadlist.append(t)
+            #print(tgtHost,tgtPort)
             # threadinglist.append(t)
 
 def main():
@@ -64,17 +65,27 @@ def main():
     (options, args) = parser.parse_args()
     tgtHost = options.tgtHost
     tgtPorts = str(options.tgtPorts).split(',')
+    
+    #tgtHost = "111.230.153.1-111.230.154.201"
+    #tgtPorts = [80,443]
     tgtHosts = get_ip(tgtHost)
     if (tgtHost == None) | (tgtPorts[0] == None):
-        print(parser.usage)
+        #print(parser.usage)
         exit(0)
     # tgtHosts = ['111.230.154.42']
     # tgtPorts = ['3306']
     portScan(tgtHosts, tgtPorts)
-    time.sleep(3)
+    time.sleep(6)
+    for i in threadlist:
+        i.start()
+    for i in threadlist:
+        i.join()
+    time.sleep(6) 
+    f1 = open('resultok.csv','a')
     for result in resultlist:
-        with open('cike.csv','a') as f:
-            f.write(result)
+        f1.write(result)
+    time.sleep(1)
+    f1.close()
 
 
 if __name__ == '__main__':
